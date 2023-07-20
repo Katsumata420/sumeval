@@ -236,7 +236,7 @@ class RougeCalculator():
         f1: float
             f1 score
         """
-        pass
+        raise NotImplementedError()
 
     def get_sentence_tokenizer(self):
         """
@@ -252,7 +252,7 @@ class RougeCalculator():
         -------
         tokenizer: Callable[str, List[str]]
         """
-        pass
+        raise NotImplementedError()
 
     def count_be(self, text, compare_type, is_reference=False):
         bes = self.parse_to_be(text, is_reference)
