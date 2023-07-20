@@ -77,10 +77,10 @@ class TestRougeJA(unittest.TestCase):
             summaries = data[eval_id]["summaries"]
             references = data[eval_id]["references"]
 
-            pythonrouge_summaries, pythonrouge_references = word2ids(pythonrouge_summaries, pythonrouge_references)
+            pythonrouge_summaries, pythonrouge_references = word2ids(summaries, references)
             baseline = Pythonrouge(summary_file_exist=False,
                                    summary=[pythonrouge_summaries],
-                                   references=[[pythonrouge_references]],
+                                   reference=[[pythonrouge_references]],
                                    n_gram=1, recall_only=False, ROUGE_L=True,
                                    length_limit=True, length=100,
                                    stemming=False, stopwords=False)
