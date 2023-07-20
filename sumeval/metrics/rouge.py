@@ -7,11 +7,13 @@ class RougeCalculator():
 
     def __init__(self,
                  stopwords=True, stemming=False,
-                 word_limit=-1, length_limit=-1, lang="en"):
+                 word_limit=-1, length_limit=-1, lang="en",
+                 split_summaries=False):
         self.stemming = stemming
         self.stopwords = stopwords
         self.word_limit = word_limit
         self.length_limit = length_limit
+        self.split_summaries = split_summaries
         if isinstance(lang, str):
             self.lang = lang
             self._lang = get_lang(lang)
@@ -181,7 +183,7 @@ class RougeCalculator():
 
     def rouge_l(self, summary, references, alpha=0.5):
         """
-        Calculate ROUGE-L score.
+        Calculate Sentence-Level ROUGE-L score.
 
         Parameters
         ----------
@@ -193,7 +195,7 @@ class RougeCalculator():
             alpha -> 0: recall is more important
             alpha -> 1: precision is more important
             F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
-        
+
         Returns
         -------
         f1: float
@@ -210,6 +212,47 @@ class RougeCalculator():
         count_for_prec = len(_refs) * len(_summary)
         f1 = self._calc_f1(matches, count_for_recall, count_for_prec, alpha)
         return f1
+
+    def rouge_l_summary(self, summary, references, sentence_tokenizer=None, alpha=0.5):
+        """
+        Calculate Summary-Level ROUGE-L score.
+
+        Parameters
+        ----------
+        summary: str
+            summary text
+        references: str or str[]
+            reference or references to evaluate summary
+        alpha: float (0~1)
+            alpha -> 0: recall is more important
+            alpha -> 1: precision is more important
+            F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
+        sentence_tokenizer: Optional[Callable[str, List[str]]]
+            sentence tokenizer. If None, use default tokenizer.
+            As for default, see get_sentence_tokenizer().
+
+        Returns
+        -------
+        f1: float
+            f1 score
+        """
+        pass
+
+    def get_sentence_tokenizer(self):
+        """
+        Get default sentence tokenizer.
+
+        The sentence tokenizer is decided by split_summaries and language.
+        If split_summaries is True, use the language specific tokenizer.
+        If English, use nltk.sent_tokenize.
+        If Japanese, use bunkai.
+        If split_summaries is False, use the tokenizer which split text by newline.
+
+        Returns
+        -------
+        tokenizer: Callable[str, List[str]]
+        """
+        pass
 
     def count_be(self, text, compare_type, is_reference=False):
         bes = self.parse_to_be(text, is_reference)
@@ -238,7 +281,7 @@ class RougeCalculator():
             alpha -> 0: recall is more important
             alpha -> 1: precision is more important
             F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
-        
+
         Returns
         -------
         f1: float
