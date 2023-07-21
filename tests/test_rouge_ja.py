@@ -72,7 +72,7 @@ class TestRougeJA(unittest.TestCase):
             return summary, reference
 
         data = self.load_test_data()
-        rouge = RougeCalculator(stopwords=False, lang="ja")
+        rouge = RougeCalculator(stopwords=False, lang="ja", split_summaries=True)
         sentence_tokenizer = rouge.get_sentence_tokenizer()
         for eval_id in data:
             summaries = data[eval_id]["summaries"]
