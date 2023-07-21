@@ -7,6 +7,7 @@ pytest-cov==2.7.1
 beautifulsoup4>=4.7.1
 -e git+https://github.com/tagucci/pythonrouge.git#egg=pythonrouge
 -e git+https://github.com/bdusell/rougescore.git#egg=rougescore
+rouge-score
 # Basic Element
 spacy>=2.0.0,<3.0.0
 # For Chinese

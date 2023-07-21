@@ -7,11 +7,13 @@ class RougeCalculator():
 
     def __init__(self,
                  stopwords=True, stemming=False,
-                 word_limit=-1, length_limit=-1, lang="en"):
+                 word_limit=-1, length_limit=-1, lang="en",
+                 split_summaries=False):
         self.stemming = stemming
         self.stopwords = stopwords
         self.word_limit = word_limit
         self.length_limit = length_limit
+        self.split_summaries = split_summaries
         if isinstance(lang, str):
             self.lang = lang
             self._lang = get_lang(lang)
@@ -179,9 +181,48 @@ class RougeCalculator():
 
         return left
 
+    def _summary_level_lcs(self, summary, references):
+        """
+        Calculate LCS score for summary-level ROUGE-L.
+
+        Following the section 3.2 in ROUGE paper and Google rouge.
+        Google Rouge url: https://github.com/google-research/google-research/blob/master/rouge/rouge_scorer.py
+
+        Parameters
+        ----------
+        summary: str[][]
+            list of tokenized summary
+        references: str[][]
+            list of tokenized reference
+
+        Returns
+        -------
+        sum_union_lcs: int
+            sum of union lcs
+        """
+        # get token counts to prevent double counting
+        token_counts_reference = Counter()
+        token_counts_summary = Counter()
+        for ref in references:
+            token_counts_reference.update(ref)
+        for summ in summary:
+            token_counts_summary.update(summ)
+
+        sum_union_lcs = 0
+        for ref in references:
+            lcs = _union_lcs(ref, summary)
+            # Prevent double-counting:
+            # See ROUGE-1.5.5.pl and Google rouge.
+            for token in lcs:
+                if token_counts_summary[token] > 0 and token_counts_reference[token] > 0:
+                    sum_union_lcs += 1
+                    token_counts_summary[token] -= 1
+                    token_counts_reference[token] -= 1
+        return sum_union_lcs
+
     def rouge_l(self, summary, references, alpha=0.5):
         """
-        Calculate ROUGE-L score.
+        Calculate Sentence-Level ROUGE-L score.
 
         Parameters
         ----------
@@ -193,7 +234,7 @@ class RougeCalculator():
             alpha -> 0: recall is more important
             alpha -> 1: precision is more important
             F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
-        
+
         Returns
         -------
         f1: float
@@ -210,6 +251,72 @@ class RougeCalculator():
         count_for_prec = len(_refs) * len(_summary)
         f1 = self._calc_f1(matches, count_for_recall, count_for_prec, alpha)
         return f1
+
+    def rouge_l_summary(self, summary, references, sentence_tokenizer=None, alpha=0.5):
+        """
+        Calculate Summary-Level ROUGE-L score.
+
+        Parameters
+        ----------
+        summary: str
+            summary text
+        references: str or str[]
+            reference or references to evaluate summary
+            if str[], use references as sentence tokenized data.
+        alpha: float (0~1)
+            alpha -> 0: recall is more important
+            alpha -> 1: precision is more important
+            F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
+        sentence_tokenizer: Optional[Callable[str, List[str]]]
+            sentence tokenizer. If None, use default tokenizer.
+            As for default, see get_sentence_tokenizer().
+
+        Returns
+        -------
+        f1: float
+            f1 score
+        """
+        if sentence_tokenizer is None:
+            sentence_tokenizer = self.get_sentence_tokenizer()
+
+        _summary = [self.tokenize(sent) for sent in sentence_tokenizer(summary)]
+        if isinstance(references, str):
+            _refs = [self.tokenize(sent, True) for sent in sentence_tokenizer(references)]
+        else:
+            _refs = references
+
+        count_for_recall = sum(map(len, _refs))
+        count_for_precision = sum(map(len, _summary))
+        sum_union_lcs = self._summary_level_lcs(_summary, _refs)
+        f1 = self._calc_f1(sum_union_lcs, count_for_recall, count_for_precision, alpha)
+        return f1
+
+    def get_sentence_tokenizer(self):
+        """
+        Get default sentence tokenizer.
+
+        The sentence tokenizer is decided by split_summaries and language.
+        If split_summaries is True, use the language specific tokenizer.
+        If English, use nltk.sent_tokenize.
+        If Japanese, use ja_ginza.
+        If split_summaries is False, use the tokenizer which split text by newline.
+
+        Returns
+        -------
+        tokenizer: Callable[str, List[str]]
+        """
+        if not self.split_summaries:
+            return lambda x: x.split("\n")
+        elif self.lang == "ja":
+            import spacy
+            nlp = spacy.load("ja_ginza")
+            return lambda x: [s.text for s in nlp(x).sents]
+        elif self.lang == "en":
+            import nltk
+            nltk.download("punkt")
+            return nltk.sent_tokenize
+        else:
+            raise NotImplementedError(f"language {self.lang} is not supported.")
 
     def count_be(self, text, compare_type, is_reference=False):
         bes = self.parse_to_be(text, is_reference)
@@ -238,7 +345,7 @@ class RougeCalculator():
             alpha -> 0: recall is more important
             alpha -> 1: precision is more important
             F = 1/(alpha * (1/P) + (1 - alpha) * (1/R))
-        
+
         Returns
         -------
         f1: float
@@ -255,3 +362,64 @@ class RougeCalculator():
         count_for_prec = len(_refs) * sum(s_bes.values())
         f1 = self._calc_f1(matches, count_for_recall, count_for_prec, alpha)
         return f1
+
+
+def _union_lcs(ref, summary):
+    """
+    Find union LCS between a reference sentence and list of summary sentences.
+
+    Parameters
+    ----------
+    ref: str[]
+        tokenized reference sentence
+    summary: str[][]
+        list of tokenized summary sentences
+
+    Returns
+    -------
+    lcs: str[]
+        union LCS
+    """
+    def find_union(lcs_list):
+        return sorted(list(set().union(*lcs_list)))
+
+    lcs_list = [_lcs_idx(ref, summ) for summ in summary]
+    return [ref[i] for i in find_union(lcs_list)]
+
+
+def _lcs_idx(ref, summ):
+    """Retrun LCS token index between a reference sentence and a summary sentence."""
+    table = _lcs_table(ref, summ)
+    return _backtrack(table, ref, summ)
+
+
+def _lcs_table(ref, summ):
+    """Fill LCS table."""
+    rows = len(ref) + 1
+    columns = len(summ) + 1
+    table = [[0] * columns for _ in range(rows)]
+    for i in range(1, rows):
+        for j in range(1, columns):
+            if ref[i - 1] == summ[j - 1]:
+                table[i][j] = table[i - 1][j - 1] + 1
+            else:
+                table[i][j] = max(table[i][j - 1], table[i - 1][j])
+    return table
+
+
+
+def _backtrack(table, ref, summ):
+    """Backtrack LCS table."""
+    i = len(ref)
+    j = len(summ)
+    idx = []
+    while i > 0 and j > 0:
+        if ref[i - 1] == summ[j - 1]:
+            idx.insert(0, i - 1)
+            i -= 1
+            j -= 1
+        elif table[i][j - 1] > table[i - 1][j]:
+            j -= 1
+        else:
+            i -= 1
+    return idx

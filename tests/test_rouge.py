@@ -3,6 +3,7 @@ import json
 import sys
 import unittest
 from rougescore import rouge_n, rouge_l
+from rouge_score.rouge_scorer import RougeScorer
 from pythonrouge.pythonrouge import Pythonrouge
 from sumeval.metrics.rouge import RougeCalculator
 
@@ -131,6 +132,32 @@ class TestRouge(unittest.TestCase):
                 v = rouge.rouge_l(s, references)
                 self.assertLess(abs(b2_v - v), 1e-5)
                 self.assertLess(abs(b1_v["ROUGE-L-F"] - v), 1e-5)
+
+    def test_summary_rouge_l(self):
+        data = self.load_test_data()
+        rouge = RougeCalculator(stopwords=False)
+        gl_baseline = RougeScorer(["rougeLsum"], use_stemmer=False)
+        for eval_id in data:
+            summaries = data[eval_id]["summaries"]
+            references = data[eval_id]["references"]
+            baseline = Pythonrouge(
+                        summary_file_exist=False,
+                        summary=[summaries],
+                        reference=[[references]],
+                        n_gram=1, recall_only=False, ROUGE_L=True,
+                        length_limit=False,
+                        stemming=False, stopwords=False)
+            pythonrouge_score = baseline.calc_score()
+
+            gl_summaries = "\n".join(summaries)
+            gl_references = "\n".join(references)
+            gl_score = gl_baseline.score(gl_references, gl_summaries)
+
+            sentence_tokenizer = lambda x: x.split("\n") # noqa
+            rouge_l_score = rouge.rouge_l_summary(gl_summaries, gl_references, sentence_tokenizer)
+
+            self.assertLess(abs(gl_score["rougeLsum"].fmeasure - rouge_l_score), 1e-5)
+            self.assertLess(abs(pythonrouge_score["ROUGE-L-F"] - rouge_l_score), 1e-5)
 
 
 if __name__ == "__main__":

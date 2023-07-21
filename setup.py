@@ -46,4 +46,8 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.6"
     ],
+    extras_require={
+        "ja": ["ja-ginza<6.0"],
+        "en": ["nltk<4.0"]
+    },
 )
