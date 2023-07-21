@@ -1,7 +1,9 @@
-from sacrebleu import corpus_bleu, TOKENIZERS, DEFAULT_TOKENIZER
+from sacrebleu import corpus_bleu, BLEU
 from sumeval.metrics.lang.base_lang import BaseLang
 from sumeval.metrics.lang import get_lang
 
+
+TOKENIZERS = {}
 
 class BLEUCalculator():
 
@@ -9,6 +11,9 @@ class BLEUCalculator():
                  smooth_method="floor", smooth_value=0.01,
                  lowercase=False, use_effective_order=True,
                  lang="en"):
+        import warnings
+        message = "This class has not been fully tested on sacrebleu v2, so don't know if it will work."
+        warnings.warn(message)
         self.smooth_method = smooth_method
         self.smooth_value = smooth_value
         self.lowercase = lowercase
@@ -20,7 +25,7 @@ class BLEUCalculator():
             self.lang = lang.lang
             self._lang = lang
 
-        self._tokenizer = DEFAULT_TOKENIZER
+        self._tokenizer = BLEU.TOKENIZER_DEFAULT
         if self.lang == "ja":
             def tokenizer_ja(text):
                 words = self._lang.tokenize_with_preprocess(text)
