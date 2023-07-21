@@ -135,7 +135,7 @@ class TestRouge(unittest.TestCase):
 
     def test_summary_rouge_l(self):
         data = self.load_test_data()
-        rouge = RougeCalculator(stopwords=True)
+        rouge = RougeCalculator(stopwords=False)
         gl_baseline = RougeScorer(["rougeLsum"], use_stemmer=False)
         for eval_id in data:
             summaries = data[eval_id]["summaries"]
@@ -145,8 +145,8 @@ class TestRouge(unittest.TestCase):
                         summary=[summaries],
                         reference=[[references]],
                         n_gram=1, recall_only=False, ROUGE_L=True,
-                        length_limit=True, length=50,
-                        stemming=False, stopwords=True)
+                        length_limit=False,
+                        stemming=False, stopwords=False)
             pythonrouge_score = baseline.calc_score()
 
             gl_summaries = "\n".join(summaries)
@@ -156,7 +156,7 @@ class TestRouge(unittest.TestCase):
             sentence_tokenizer = lambda x: x.split("\n") # noqa
             rouge_l_score = rouge.rouge_l_summary(gl_summaries, gl_references, sentence_tokenizer)
 
-            self.assertLess(abs(gl_score["rougeLsum"] - rouge_l_score), 1e-5)
+            self.assertLess(abs(gl_score["rougeLsum"].fmeasure - rouge_l_score), 1e-5)
             self.assertLess(abs(pythonrouge_score["ROUGE-L-F"] - rouge_l_score), 1e-5)
 
 

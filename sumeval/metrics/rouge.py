@@ -390,7 +390,7 @@ def _union_lcs(ref, summary):
 def _lcs_idx(ref, summ):
     """Retrun LCS token index between a reference sentence and a summary sentence."""
     table = _lcs_table(ref, summ)
-    return _backtrack(table, ref, sum)
+    return _backtrack(table, ref, summ)
 
 
 def _lcs_table(ref, summ):
@@ -407,6 +407,7 @@ def _lcs_table(ref, summ):
     return table
 
 
+
 def _backtrack(table, ref, summ):
     """Backtrack LCS table."""
     i = len(ref)
@@ -417,8 +418,8 @@ def _backtrack(table, ref, summ):
             idx.insert(0, i - 1)
             i -= 1
             j -= 1
-        elif table[i - 1][j] > table[i][j - 1]:
-            i -= 1
-        else:
+        elif table[i][j - 1] > table[i - 1][j]:
             j -= 1
+        else:
+            i -= 1
     return idx

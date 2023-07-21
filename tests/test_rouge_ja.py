@@ -73,16 +73,20 @@ class TestRougeJA(unittest.TestCase):
 
         data = self.load_test_data()
         rouge = RougeCalculator(stopwords=False, lang="ja")
+        sentence_tokenizer = rouge.get_sentence_tokenizer()
         for eval_id in data:
             summaries = data[eval_id]["summaries"]
             references = data[eval_id]["references"]
 
-            pythonrouge_summaries, pythonrouge_references = word2ids(summaries, references)
+            pythonrouge_summaries = [" ".join(rouge.tokenize(s)) for s in sentence_tokenizer("".join(summaries))]
+            pythonrouge_references = [" ".join(rouge.tokenize(s)) for s in sentence_tokenizer("".join(references))]
+
+            pythonrouge_summaries, pythonrouge_references = word2ids(pythonrouge_summaries, pythonrouge_references)
             baseline = Pythonrouge(summary_file_exist=False,
                                    summary=[pythonrouge_summaries],
                                    reference=[[pythonrouge_references]],
                                    n_gram=1, recall_only=False, ROUGE_L=True,
-                                   length_limit=True, length=100,
+                                   length_limit=False,
                                    stemming=False, stopwords=False)
             pythonrouge_score = baseline.calc_score()
 
@@ -90,7 +94,7 @@ class TestRougeJA(unittest.TestCase):
             sumeval_reference = "".join(self._compress(references))
             rouge_l_score = rouge.rouge_l_summary(sumeval_summary, sumeval_reference)
 
-            self.assertLess(abs(pythonrouge_score["ROUGE-L"] - rouge_l_score), 1e-5)
+            self.assertLess(abs(pythonrouge_score["ROUGE-L-F"] - rouge_l_score), 1e-5)
 
 
 if __name__ == "__main__":
