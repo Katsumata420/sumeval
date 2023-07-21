@@ -11,6 +11,7 @@ def main(
     use_file: ("read data from file", "flag", "f"),
     include_stopwords: ("don't ignore stop words", "flag", "in"),
     stemming: ("use stemming", "flag", "st"),
+    split_summaries: ("In Rouge-L-Sum, sententece tokenize with language-specific model.", "flag", "split"),
     word_limit: ("word limit count", "option", "wl") = -1,
     length_limit: ("sentence limit length", "option", "ll") = -1,
     alpha: ("alpha for f1-score", "option") = 0.5,
@@ -57,7 +58,7 @@ def main(
         scorer = RougeCalculator(
             stopwords=stopwords, stemming=stemming,
             word_limit=word_limit, length_limit=length_limit,
-            lang=language)
+            lang=language, split_summaries=split_summaries)
 
         for s, rs in generator:
             score = {}
@@ -69,6 +70,8 @@ def main(
                     score["ROUGE-L"] = scorer.rouge_l(s, rs, alpha)
                 elif k == "b":
                     score["ROUGE-BE"] = scorer.rouge_be(s, rs, "HMR", alpha)
+                elif k == "s":
+                    score["ROUGE-L-SUM"] = scorer.rouge_l_summary(s, rs, alpha=alpha)
             if len(keys) == 0:
                 keys = list(score.keys())
             scores.append(score)
